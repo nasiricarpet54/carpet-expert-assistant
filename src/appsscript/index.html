@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- index.html — UI for Carpet Expert Companion -->
+<head>
+  <meta charset="UTF-8" />
+  <title>assistant</title>
+  <style>
+    body { background: #f9f9f9; font-family: Arial, sans-serif; }
+    .card { background: #fff; border-radius: 8px; padding: 20px 24px;
+            max-width: 700px; margin: 30px auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+    h1 { text-align: center; }
+    h3 { margin: 0 0 10px ; }
+    textarea, input, select { width: 100%; box-sizing: border-box;
+        padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 10px 22px; border: none; border-radius: 4px;
+             background: #2563eb; color: #fff; cursor: pointer; font-size: 15px; }
+    button:hover { background: #1d4ed8; }
+    .box { display: flex; flex-direction: column; gap: 8px; }
+    #result { margin: 12px 0; padding: 12px; background: #eef; border-radius: 4px; }
+    .inline { display: flex; gap: 8px; align-items: center; }
+    img#preview { max-width: 200px; border-radius: 4px; }
+    .error { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>👋 دستیار کارشناسی فرش</h1>
+
+    <h2>1️⃣ تشخیص تصویر فرش</h2>
+    <label>تصویر فرش را آپلود کنید (jpg/png، حداکثر ۲۰ مگابایت):</label>
+    <input type="file" id="image" accept="image/*" />
+    <img id="preview" />
+
+    <div class="box">
+      <button id="btnAnalyze">🔍 تشخیص محل بافت + نقشه</button>
+    </div>
+
+    <div id="resultRegion">Waiting...</div>
+
+    <h2>2️⃣ تخمین قیمت</h2>
+    <div class="box">
+      <input type="text" id="region" placeholder="منطقه بافت (مثلاً تبریز)" />
+      <input type="number" id="sizeM" placeholder="متر مربع" />
+      <select id="material">
+        <option value="wool">پشم</option>
+        <option value="silk">ابریشم</option>
+        <option value="cotton">کتان</option>
+        <option value="other">سایر</option>
+      </select>
+      <input type="number" id="knots" placeholder="گره بر متر" />
+      <input type="number" id="ageYears" placeholder="قدت تخمینی (سال)" />
+      <button id="btnPrice">💰 تخمین قیمت روز</button>
+    </div>
+
+    <div id="resultPrice">Waiting...</div>
+
+  </div>
+
+  <script>
+    const fileInput = document.getElementById("image");
+    const preview = document.getElementById("preview");
+    const resultRegion = document.getElementById("resultRegion");
+    const resultPrice = document.getElementById("resultPrice");
+
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (ev) => preview.src = ev.target.result;
+      reader.readAsBinaryString(file);
+    });
+
+    document.getElementById("btnAnalyze").addEventListener("click", () => {
+      const file = fileInput.files[0];
+      if (!file) return alert("لطفا فایل انتخاب کنید");
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const base64 = ev.target.result;
+        google.script.run
+            .withSuccessHandler((r) => {
+              resultRegion.innerHTML =
+                  `<strong>منطقه:</strong> ${r.region}<br />
+                   <strong>نقشه:</strong> ${r.pattern_type}<br />
+                   <strong>متریال:</strong> ${r.material}<br />
+                   <strong>اعتماد:</strong> ${(r.confidence*100).toFixed(1)}%<br />
+                   <strong>شرایط:</strong> ${r.condition}
+                   <br /><img src="${r.image}" width="150" />`;
+            })
+            .withFailureHandler((e) => resultRegion.innerHTML = `<span class="error">${e.message}</span>`)
+            .analyzeImage(file, base64);
+      };   reader.readAsDataURL(file);
+    });
+
+    document.getElementById("btnPrice").addEventListener("click", () => {
+      const carpet = {
+        region: document.getElementById("region").value,
+        sizeM: document.getElementById("sizeM").value,
+        material: document.getElementById("material").value,
+        knots: document.getElementById("knots").value,
+        ageYears: document.getElementById("ageYears").value,
+      };
+      google.script.run
+          .withSuccessHandler((r) => {
+            resultPrice.innerHTML = `
+              <strong>قیمت واحد</strong>: ${r.unit} تومان<br />
+              <strong>محدوده</strong>: ${r.low} تومان — ${r.high} تومان<br />
+              <em>(این قیمت تخمینی است و نیازمند تأیید کارشناس می‌باشد)</em>`;
+          })
+          .withFailureHandler((e) => resultPrice.innerHTML = `<span class="error">${e.message}</span>`)
+          .priceEstimate(carpet);
+    });
+  </script>
+</body>
+</html>
