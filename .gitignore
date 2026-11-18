@@ -1,0 +1,26 @@
+# 🚫 .gitignore — never commit secrets
+
+# Secrets (NEVER commit)
+.env
+.env.local
+secrets.txt
+tokens.json
+
+# Secrets for AI Studio key
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.iml
+.claude/
+
+# Build
+__pycache__/
+*.pyc
+node_modules/
